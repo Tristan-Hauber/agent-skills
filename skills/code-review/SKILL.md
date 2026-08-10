@@ -1,0 +1,14 @@
+---
+name: code-review
+description: Verify that a code change is correct, appropriately scoped, maintainable, and adequately validated.
+---
+
+Review only; do not edit. Accept requirements, target revision/worktree, optional verified evidence/review receipt, and `scope=auto|initial|delta|final` (`auto` default).
+
+1. Pin the exact code state. Initial review maps the complete current diff; a verified repeat starts from the descendant delta and affected symbols. Unknown freshness, non-ancestry, or mismatched fingerprints invalidate affected evidence.
+2. Retrieve stat/name-status, then hunks and bounded symbol/dependency context; expand whole files/history only for interactions or unresolved provenance. Cache evidence, not conclusions. Keep fragments near 1,000 tokens and below 10,000 unless unavoidable; keep full logs outside context.
+3. Use a fresh high-reasoning read-only reviewer. Check correctness, regressions, failure/safety/security/privacy, data/concurrency, compatibility, docs, repo rules, and **scope hygiene**. Every final-diff hunk must support requirements/validation or necessary/tool-mandated adjacent cleanup. Flag behaviour-neutral residue—especially partial-revert import/format/syntax edits—that needlessly broadens files/review surface; prefer revert/follow-up unless inseparable or risk-reducing. Do not load intermediate commit diffs merely to find residue.
+4. Treat new/change-relevant compiler warnings, especially concurrency/isolation/lifetime/data-race warnings, as findings unless benign. Check changed lifecycle/retention/cleanup and source anchors: after moves, comments/docs/tests must still point to authoritative symbols/behaviour. Challenge forwarding indirection/duplication without policy, transformation, ownership/lifecycle, compatibility, reuse, or test value. For non-obvious load-bearing choices, make the *why* discoverable via naming/docs or a concise rationale comment; never restate code. Localisation: each touched key or documented fallback in every supported locale, plus neighbouring/glossary consistency; preserve regional variants. Ignore unrelated defects unless worsened/delivery-blocking.
+5. For coverage-relevant behaviour/test/seam changes, run `$test-review` with verified evidence; between cycles refresh only after coverage-affecting deltas. Before `CLEAN`, `scope=final` reruns `$test-review` on the complete current relevant behaviour/tests/seams and requires fresh code reasoning over the exact complete diff, requirements, and validation; unchanged verified bytes may be reused, never old conclusions.
+
+Render evidence-backed `P#`; put decisions under `Please answer:` as direct `Q#`; never emit `NEXT`. If explicitly requested, use a compact table without weakening P#/Q# evidence semantics. Return findings or `CLEAN` plus a receipt with state/diff fingerprints, inspected ranges, validation, test-review receipt, scope, and result IDs.
