@@ -1,0 +1,4 @@
+interface:
+  display_name: "Report Skill Feedback"
+  short_description: "Capture compact evidence of agent and workflow failures."
+  default_prompt: "Use $report-skill-feedback to capture this feedback event for later assessment."
