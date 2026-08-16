@@ -16,26 +16,26 @@ Start with the smallest workflow matching the current state. Review skills are r
 
 | Situation | Start with | Typical continuation |
 |---|---|---|
-| Fresh implementation-ready issue | `$deliver-github-issue <issue>` | Reviews, plans, implements, verifies, creates a PR, and fixes PR findings until review-ready. |
+| Fresh implementation-ready issue | `$deliver-issue <issue>` | Reviews, plans, implements, verifies, creates a PR, and fixes PR findings until review-ready. |
 | Rough or incomplete issue | `$issue-refinement <issue>` | Inspect the local proposal; use `mode=update` only when ready to change GitHub. |
 | Large issue with independent outcomes | `$issue-decomposition <issue>` | Inspect child drafts; use `mode=create` only when approved. |
-| Review an issue without changing it | `$issue-review <issue>` | Post with `$provide-github-feedback`, or update with `$issue-fixer` when authorised. |
+| Review an issue without changing it | `$issue-review <issue>` | Post with `$post-github-feedback`, or update with `$update-issue` when authorised. |
 | Diagnose an observed defect | `$diagnose-bug <symptom>` | Reproduces and localises the failing boundary; pass the verified `P#` to `$promote-to-issue`. |
-| Implement one bounded task | `$implement-task On branch <branch>, <task>` | Produces one reviewed, validated commit; no push or PR by default. |
+| Deliver one bounded work item | `$deliver-work-item On branch <branch>, <item>` | Produces one reviewed, validated commit; no push or PR by default. |
 | Create or reconcile a PR | `$create-or-update-pr ...` | Then run `$pr-review`. |
-| Review someone else’s PR | `$pr-review <PR>` | Post findings with `$provide-github-feedback`; do not mutate their branch without authority. |
+| Review someone else’s PR | `$pr-review <PR>` | Post findings with `$post-github-feedback`; do not mutate their branch without authority. |
 | Review code/config/resource changes | `$code-review <diff/branch>` | Checks correctness, scope, design, warnings, localisation, and delegates test credibility. |
 | Review changed tests specifically | `$test-review <diff/PR/tests>` | Checks claim fidelity, real boundaries, cohesion, redundancy, and scaffolding value. |
-| Review and repair your own PR | `$pr-review <PR>` | `$pr-fixer`, then repeat review until `CLEAN`. |
-| Evaluate issue or PR comments | `$evaluate-github-comments <target>` | Inspect dispositions or use `$comment-fixer`. |
+| Review and repair your own PR | `$pr-review <PR>` | `$update-pr`, then repeat review until `CLEAN`. |
+| Evaluate issue or PR comments | `$evaluate-github-comments <target>` | Inspect dispositions or use `$address-comments`. |
 | Turn a finding or discussion into an issue | `$promote-to-issue <source>` | Deduplicates, refines, reviews, and proposes creation; `mode=create` requires authority. |
-| Address selected comments end to end | `$comment-fixer <comment URLs/IDs>` | Evaluates, fixes, verifies, and replies once per commenter. |
-| Check immediately before merge | `$pre-merge-verification <PR>` | Merge only when it returns `READY`; it never merges. |
+| Address selected comments end to end | `$address-comments <comment URLs/IDs>` | Evaluates, fixes, verifies, and replies once per commenter. |
+| Check immediately before merge | `$verify-pr-readiness <PR>` | Merge only when it returns `READY`; it never merges. |
 
 ### Fresh issue
 
 ```text
-$deliver-github-issue <issue>
+$deliver-issue <issue>
 
 Possible stop:
 - incomplete specification → $issue-refinement <issue>
@@ -47,7 +47,7 @@ Possible stop:
 
 `issue-review` classifies material requirements and sources as `target-owned`, `inherited`, `dependency`, `downstream`, or `context`. Only target-owned and inherited requirements define the target's acceptance. Dependencies may block readiness, while downstream/context sources can constrain interfaces or expose risk without silently expanding scope. A missing-acceptance finding must trace ownership to the target or an applicable parent; related terminology or a downstream requirement is not enough. The same ownership ledger is reused by planning and delivery verification.
 
-`deliver-github-issue` defaults to `issue_update=ask`:
+`deliver-issue` defaults to `issue_update=ask`:
 
 - `ask` — show the exact proposed issue change once before recording material answers.
 - `auto` — direct user answers may be recorded and reviewed automatically.
@@ -85,17 +85,17 @@ The default `mode=propose` verifies current evidence, searches open and recently
 ```text
 $pr-review <PR>
 → inspect the P# findings and any Q# questions
-→ $provide-github-feedback <PR> <findings>
+→ $post-github-feedback <PR> <findings>
 ```
 
 ### Review and repair your own PR
 
 ```text
 $pr-review <PR>
-→ $pr-fixer <PR> <findings>
+→ $update-pr <PR> <findings>
 → repeat until $pr-review returns CLEAN
 → human review and CI
-→ $pre-merge-verification <PR>
+→ $verify-pr-readiness <PR>
 ```
 
 ### Review tests directly
@@ -176,30 +176,30 @@ Rules:
 
 ## Top-level workflows
 
-- `deliver-github-issue`
-- `implement-task`
+- `deliver-issue`
+- `deliver-work-item`
 - `issue-refinement`
 - `issue-decomposition`
-- `pre-merge-verification`
+- `verify-pr-readiness`
 - `promote-to-issue`
 - `diagnose-bug`
 
 ## Reusable bricks
 
 - `plan-issue-work`
-- `implement-reviewed-item`
+- `execute-reviewed-item`
 - `adversarial-review-loop`
 - `artifact-review`
 - `code-review`
 - `test-review`
 - `verify-issue-delivery`
 - `issue-review`
-- `issue-fixer`
+- `update-issue`
 - `pr-review`
-- `pr-fixer`
+- `update-pr`
 - `evaluate-github-comments`
-- `comment-fixer`
-- `provide-github-feedback`
+- `address-comments`
+- `post-github-feedback`
 - `create-or-update-pr`
 
 Every skill is explicit-only. Use `$skill-name`; no workflow in this catalogue may begin external writes through implicit matching.
@@ -240,11 +240,11 @@ Issue delivery separates three decisions that must not be conflated:
 
 `plan-issue-work` derives them in that order. Parallelisability never decides whether work deserves one or several commits. A nontrivial issue planned as one item needs a substantive single-item rationale; shared files, shared subsystem, sequentiality, or inability to parallelise are not enough. Dependent workers/worktrees are started only after prerequisite commits integrate, from the new exact `HEAD`.
 
-Each planned item still follows `implement-reviewed-item`: implement → strong review/fix → validation → one final commit. Findings found before that commit remain inside the item. If later implementation or review discovers an in-scope defect in an already established commit, delivery creates a new minimal fix item/commit rather than rewriting reviewed history by default. Coupled defects may share one fix item; commit count is an outcome, not a target.
+Each planned item still follows `execute-reviewed-item`: implement → strong review/fix → validation → one final commit. Findings found before that commit remain inside the item. If later implementation or review discovers an in-scope defect in an already established commit, delivery creates a new minimal fix item/commit rather than rewriting reviewed history by default. Coupled defects may share one fix item; commit count is an outcome, not a target.
 
 ## Input and evidence reuse
 
-`deliver-github-issue` owns a small review-state manifest under the repository Git common directory. It records fingerprints, cutoffs, inspected locations, validation receipts, and review receipts—not source bodies or trusted conclusions. Reviewers verify fingerprints before reuse, fetch only changed/new/edited evidence between cycles, and still perform fresh final reasoning over the exact complete current diff/state before `CLEAN`.
+`deliver-issue` owns a small review-state manifest under the repository Git common directory. It records fingerprints, cutoffs, inspected locations, validation receipts, and review receipts—not source bodies or trusted conclusions. Reviewers verify fingerprints before reuse, fetch only changed/new/edited evidence between cycles, and still perform fresh final reasoning over the exact complete current diff/state before `CLEAN`.
 
 Retrieval proceeds from metadata/stat/name-status to changed hunks and affected symbols; whole files, histories, or logs are expanded only when required. Evidence fragments target roughly 1,000 tokens, with deliberate splitting/expansion and a 10,000-token per-fragment hard guard unless no safe alternative exists. Full logs stay on disk. See [`INPUT-EFFICIENCY-REVIEW.md`](INPUT-EFFICIENCY-REVIEW.md). Dependency freshness follows the same rule: verify only readiness/acceptance-critical references metadata-first, and expand linked diffs only when bounded evidence cannot establish what shipped or a cross-item contract needs implementation detail. `code-review` judges the final net diff without loading intermediate commits merely to hunt partial-revert residue. `test-review` searches changed and nearby semantically related tests first; it never scans the full suite merely to look for duplicates. `artifact-review` reads the artifact first and expands only bounded source evidence needed for material claims; issue/PR drafts reuse the packet already assembled by their owning workflow rather than rereading linked graphs or diffs.
 
@@ -255,16 +255,16 @@ Earlier standalone local skills can be retired once their useful behaviour is re
 - old `code-review` → `code-review` (now includes changed lifecycle/retention/cleanup and source-anchor checks)
 - old `issue-review` → `issue-review` (retains a bounded established-Swift-architecture check)
 - `adversarial-review` → `code-review` / `pr-review` (explicit compact-table output remains available)
-- `adversarial-auto-fixer` → `adversarial-review-loop` / `pr-fixer` / `implement-task`
-- `gh-address-comments` → `evaluate-github-comments` / `comment-fixer` (selected PR thread state is preserved; GraphQL is used only when flat comments are insufficient)
-- `yeet` → `create-or-update-pr` / `implement-task` (connector/API first, safe authenticated `gh` fallback, remote revalidation)
-- `repository-workflow` → `implement-task` / `implement-reviewed-item` (pre-existing dirt and one-logical-unit rules are explicit)
+- `adversarial-auto-fixer` → `adversarial-review-loop` / `update-pr` / `deliver-work-item`
+- `gh-address-comments` → `evaluate-github-comments` / `address-comments` (selected PR thread state is preserved; GraphQL is used only when flat comments are insufficient)
+- `yeet` → `create-or-update-pr` / `deliver-work-item` (connector/API first, safe authenticated `gh` fallback, remote revalidation)
+- `repository-workflow` → `deliver-work-item` / `execute-reviewed-item` (pre-existing dirt and one-logical-unit rules are explicit)
 
 The catalogue intentionally keeps its no-`[codex]` PR-title rule.
 
 ## Runtime prompt budget
 
-The validator caps the 22 runtime skill files at 6,245 words, `deliver-github-issue` at 500 words, the eight evidence-heavy review/diagnostic skills at 350 words, other skills at 280 words, and descriptions at 18 words. The current catalogue uses 6,197 words. The ceiling is roughly 5% above the reviewed baseline and remains a drift guard, not an optimisation target. `artifact-review`, `code-review`, `test-review`, `promote-to-issue`, and `diagnose-bug` are selectively loaded rather than universal prompt cost. See [`TOKEN-REVIEW.md`](TOKEN-REVIEW.md).
+The validator caps the 22 runtime skill files at 6,245 words, `deliver-issue` at 500 words, the eight evidence-heavy review/diagnostic skills at 350 words, other skills at 280 words, and descriptions at 18 words. The current catalogue uses 6,197 words. The ceiling is roughly 5% above the reviewed baseline and remains a drift guard, not an optimisation target. `artifact-review`, `code-review`, `test-review`, `promote-to-issue`, and `diagnose-bug` are selectively loaded rather than universal prompt cost. See [`TOKEN-REVIEW.md`](TOKEN-REVIEW.md).
 
 A skill reaching **90% of its cap** triggers a recorded keep/compress/split architecture decision; it does not automatically require splitting. Adding/removing a skill or changing the skill call graph requires a fresh catalogue architectural review before validation passes. See [`ARCHITECTURE-REVIEW.md`](ARCHITECTURE-REVIEW.md).
 
@@ -275,10 +275,10 @@ A skill reaching **90% of its cap** triggers a recorded keep/compress/split arch
 - Temporary worktrees and safely redundant temporary branches are closed on every exit.
 - Export a recovery patch before removing a worktree with uncommitted changes.
 - Retain and report branches containing unique unintegrated commits.
-- `implement-reviewed-item` and `implement-task` create exactly one commit only after all review cycles are clean and final validation passes.
+- `execute-reviewed-item` and `deliver-work-item` create exactly one commit only after all review cycles are clean and final validation passes.
 - Generated or reconciled PR titles never use `[codex]` or another automation prefix.
 - Existing human-authored issue/PR content is reconciled rather than blindly replaced.
-- `pre-merge-verification` always performs a fresh PR review against the exact current head.
+- `verify-pr-readiness` always performs a fresh PR review against the exact current head.
 
 ## Validate
 

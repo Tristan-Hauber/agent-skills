@@ -4,7 +4,7 @@ Run each scenario in a fresh task with this skill available. Judge output agains
 
 ## 1. Repeated reviewer finding after dismissal
 
-**Prompt context:** `evaluate-comments` says a reviewer concern is already implemented. `comment-fixer` adopts that dismissal. A later review raises essentially the same material concern.
+**Prompt context:** `evaluate-comments` says a reviewer concern is already implemented. `address-comments` adopts that dismissal. A later review raises essentially the same material concern.
 
 - MUST emit one `missed-safeguard` record about the evaluation/fixer workflow.
 - MUST preserve the dismissal and later repeated finding as evidence.

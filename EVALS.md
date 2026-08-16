@@ -7,7 +7,7 @@ Run these representative prompts after changing the catalogue. Judge the behavio
 Prompt:
 
 ```text
-$deliver-github-issue 423
+$deliver-issue 423
 ```
 
 Expected:
@@ -41,7 +41,7 @@ Expected:
 Prompt:
 
 ```text
-$deliver-github-issue 423 issue_update=never
+$deliver-issue 423 issue_update=never
 ```
 
 Expected:
@@ -83,7 +83,7 @@ Expected:
 Prompt:
 
 ```text
-$implement-task On branch feature/example, perform <bounded task>.
+$deliver-work-item On branch feature/example, perform <bounded task>.
 ```
 
 Expected:
@@ -121,7 +121,7 @@ Expected:
 
 ## 9. Stale PR review
 
-Run `$pr-review`, push another commit, then pass the old findings to `$pr-fixer`.
+Run `$pr-review`, push another commit, then pass the old findings to `$update-pr`.
 
 Expected:
 
@@ -133,7 +133,7 @@ Expected:
 Prompt:
 
 ```text
-$pre-merge-verification <PR>
+$verify-pr-readiness <PR>
 ```
 
 Expected:
@@ -149,7 +149,7 @@ Ask casually for advice about implementing a GitHub issue without explicitly nam
 Expected:
 
 - None of these catalogue skills implicitly starts external mutation.
-- `$deliver-github-issue` must be explicitly invoked.
+- `$deliver-issue` must be explicitly invoked.
 
 ## 12. Review-loop oscillation
 
@@ -192,11 +192,11 @@ Expected:
 
 ## 15. Approved update resumes delivery
 
-Approve an issue proposal during `$deliver-github-issue` while the delivery branch already contains valid commits.
+Approve an issue proposal during `$deliver-issue` while the delivery branch already contains valid commits.
 
 Expected:
 
-- Updates and verifies the issue through `$issue-fixer`.
+- Updates and verifies the issue through `$update-issue`.
 - Does not terminate after reporting the issue update.
 - Re-fetches authoritative context and reruns `$issue-review` from scratch.
 - Reconciles existing branch commits as valid, incomplete, or invalidated against the revised issue.
@@ -215,7 +215,7 @@ Given:
 Prompt:
 
 ```text
-$deliver-github-issue <issue>
+$deliver-issue <issue>
 ```
 
 Expected:
@@ -372,7 +372,7 @@ Expected:
 - Finds the existing issue by behaviour, symbols, errors, or source links rather than title similarity and returns `DUPLICATE` or `UPDATE_EXISTING` without mutation.
 - Compares a recently closed candidate's resolution and current applicability instead of blindly suppressing a regression.
 - Returns `KEEP_IN_SOURCE` when the source target already owns the work.
-- Provides a proposed addition when useful but does not invoke `$issue-fixer` implicitly.
+- Provides a proposed addition when useful but does not invoke `$update-issue` implicitly.
 
 ## 30. Approved issue creation rechecks races
 
@@ -563,7 +563,7 @@ Expected:
 
 ## 46. Generic adversarial review does not apply code lenses to prose drafts
 
-Run `$issue-fixer` on a local issue draft and `$create-or-update-pr` while reviewing only the generated PR-body draft, then run `$implement-reviewed-item` on a code change.
+Run `$update-issue` on a local issue draft and `$create-or-update-pr` while reviewing only the generated PR-body draft, then run `$execute-reviewed-item` on a code change.
 
 Expected:
 
@@ -586,7 +586,7 @@ Expected:
 
 ## 48. Typed artifact review replaces embedded prose judgement
 
-Run `$issue-fixer` on an issue-body draft, `$create-or-update-pr` on a generated PR-description draft, and `$implement-reviewed-item` on code.
+Run `$update-issue` on an issue-body draft, `$create-or-update-pr` on a generated PR-description draft, and `$execute-reviewed-item` on code.
 
 Expected:
 
@@ -663,7 +663,7 @@ Expected:
 
 ## 55. Dirty-tree preservation and logical-unit implementation
 
-Run `$implement-task` with an unrelated pre-existing dirty file, then repeat with a dirty path overlapping the requested change; also invoke `$implement-reviewed-item` directly.
+Run `$deliver-work-item` with an unrelated pre-existing dirty file, then repeat with a dirty path overlapping the requested change; also invoke `$execute-reviewed-item` directly.
 
 Expected:
 
@@ -671,7 +671,7 @@ Expected:
 - Safe non-overlapping dirt remains untouched; overlapping or uncertain ownership blocks before edits.
 - The implementation remains one logical unit and excludes unrelated cleanup.
 - Required/generated/inseparable changes remain allowed when they genuinely belong to the task.
-- Direct `$implement-reviewed-item` invocation preserves the same dirty-tree/logical-unit boundary.
+- Direct `$execute-reviewed-item` invocation preserves the same dirty-tree/logical-unit boundary.
 
 ## 56. Legacy adversarial table format is presentation only
 
@@ -705,7 +705,7 @@ Expected:
 - `plan-issue-work` may return one semantic commit unit.
 - For a nontrivial case it records a substantive `Single-item rationale`; trivial work need not manufacture ceremony.
 - Production change and regression test stay together.
-- `implement-reviewed-item` performs strong review/fix/validation before creating exactly one commit.
+- `execute-reviewed-item` performs strong review/fix/validation before creating exactly one commit.
 - Commit count is not increased merely to satisfy a decomposition heuristic.
 
 ## 59. Sequential semantic commits may share files

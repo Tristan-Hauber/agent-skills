@@ -146,7 +146,7 @@ for required in (
         errors.append(f"artifact-review: missing artifact-review contract {required!r}")
 
 for skill, required in (
-    ("issue-fixer", "$adversarial-review-loop artifact_kind=issue-draft"),
+    ("update-issue", "$adversarial-review-loop artifact_kind=issue-draft"),
     ("create-or-update-pr", "$adversarial-review-loop artifact_kind=pr-description"),
 ):
     if required not in texts.get(skill, ""):
@@ -208,7 +208,7 @@ for required in ("Prefer GitHub connector/API", "fall back to authenticated `gh`
     if required not in texts.get("create-or-update-pr", ""):
         errors.append(f"create-or-update-pr: missing connector fallback safeguard {required!r}")
 
-for skill in ("implement-task", "implement-reviewed-item"):
+for skill in ("deliver-work-item", "execute-reviewed-item"):
     lower = texts.get(skill, "").lower()
     for phrase in ("pre-existing", "never stage/overwrite", "semantic commit unit", "unrelated cleanup"):
         if phrase not in lower:
@@ -232,25 +232,25 @@ for required in (
     "one semantic commit unit", "multiple coherent commit units",
     "Findings discovered before commit", "never emitted as separate review-fix commits",
 ):
-    if required not in texts.get("implement-reviewed-item", ""):
-        errors.append(f"implement-reviewed-item: missing clean-item commit safeguard {required!r}")
+    if required not in texts.get("execute-reviewed-item", ""):
+        errors.append(f"execute-reviewed-item: missing clean-item commit safeguard {required!r}")
 
 for required in (
     "one semantic commit unit", "multiple coherent commit units",
     "same files/subsystem, sequentiality, or inability to parallelise do not make them one unit",
 ):
-    if required not in texts.get("implement-task", ""):
-        errors.append(f"implement-task: missing task-decomposition safeguard {required!r}")
+    if required not in texts.get("deliver-work-item", ""):
+        errors.append(f"deliver-work-item: missing task-decomposition safeguard {required!r}")
 
 for skill, phrases in {
-    "deliver-github-issue": (
+    "deliver-issue": (
         "never pre-create dependent worktrees", "Start dependants after prerequisites integrate from exact new `HEAD`",
         "Later in-scope defects in committed items become minimal fix items", "preserve/restart dependants from resulting `HEAD`", "never rewrite reviewed history",
     ),
     "verify-issue-delivery": (
         "already committed item", "new minimal fix item/commit", "do not amend/reset/rewrite reviewed commits by default",
     ),
-    "pr-fixer": (
+    "update-pr": (
         "Post-commit findings become new fix commits", "do not amend/reset/rewrite reviewed commits by default",
     ),
 }.items():
@@ -269,7 +269,7 @@ total_words = sum(word_counts.values())
 if total_words > MAX_TOTAL_WORDS:
     errors.append(f"skill catalogue has {total_words} words; budget is {MAX_TOTAL_WORDS}")
 def skill_word_limit(name: str) -> int:
-    if name == "deliver-github-issue":
+    if name == "deliver-issue":
         return MAX_DELIVER_WORDS
     if name in REVIEW_WORD_SKILLS:
         return MAX_REVIEW_WORDS
@@ -310,22 +310,22 @@ for name in evidence_receipt_skills:
         if phrase not in lower:
             errors.append(f"{name}: missing fragment cap {phrase!r}")
 
-deliver_evidence = texts.get("deliver-github-issue", "").lower()
+deliver_evidence = texts.get("deliver-issue", "").lower()
 for phrase in (
     "git-common-dir", "review-state.json", "main thread alone writes",
     "not source bodies", "unknown metadata", "force-push",
     "after compaction", "validation command/config", "report its path",
 ):
     if phrase not in deliver_evidence:
-        errors.append(f"deliver-github-issue: missing evidence-state safeguard {phrase!r}")
+        errors.append(f"deliver-issue: missing evidence-state safeguard {phrase!r}")
 
 question_skills = {
-    "adversarial-review-loop", "artifact-review", "code-review", "comment-fixer", "create-or-update-pr",
-    "deliver-github-issue", "evaluate-github-comments", "implement-reviewed-item",
-    "implement-task", "issue-decomposition", "issue-fixer", "issue-refinement",
-    "issue-review", "plan-issue-work", "pr-fixer", "pr-review",
+    "adversarial-review-loop", "artifact-review", "code-review", "address-comments", "create-or-update-pr",
+    "deliver-issue", "evaluate-github-comments", "execute-reviewed-item",
+    "deliver-work-item", "issue-decomposition", "update-issue", "issue-refinement",
+    "issue-review", "plan-issue-work", "update-pr", "pr-review",
     "promote-to-issue", "diagnose-bug",
-    "pre-merge-verification", "test-review", "verify-issue-delivery",
+    "verify-pr-readiness", "test-review", "verify-issue-delivery",
 }
 for name in question_skills:
     text = texts[name]
@@ -365,22 +365,22 @@ for phrase in (
         errors.append(f"diagnose-bug: missing diagnostic safeguard {phrase!r}")
 
 branch_mutators = {
-    "create-or-update-pr", "deliver-github-issue", "implement-reviewed-item",
-    "implement-task", "pr-fixer", "verify-issue-delivery",
+    "create-or-update-pr", "deliver-issue", "execute-reviewed-item",
+    "deliver-work-item", "update-pr", "verify-issue-delivery",
 }
 for name in branch_mutators:
     lower = texts[name].lower()
     if "switch" not in lower or "attached `head`" not in lower:
         errors.append(f"{name}: must switch to and verify the intended branch")
 
-worktree_creators = {"deliver-github-issue", "implement-task", "pr-fixer", "verify-issue-delivery"}
+worktree_creators = {"deliver-issue", "deliver-work-item", "update-pr", "verify-issue-delivery"}
 for name in worktree_creators:
     lower = texts[name].lower()
     for phrase in ("recovery patch", "remove/prune", "delete"):
         if phrase not in lower:
             errors.append(f"{name}: missing worktree safeguard {phrase!r}")
 
-for name in ("implement-reviewed-item", "implement-task"):
+for name in ("execute-reviewed-item", "deliver-work-item"):
     lower = texts[name].lower()
     if "exactly one" not in lower and "one focused commit" not in lower:
         errors.append(f"{name}: missing one-final-commit invariant")
@@ -393,7 +393,7 @@ for phrase in ("relationship-bearing", "do not ask anything already answered", "
     if phrase.lower() not in issue_review.lower():
         errors.append(f"issue-review: missing source/question safeguard {phrase!r}")
 
-deliver = texts["deliver-github-issue"].lower()
+deliver = texts["deliver-issue"].lower()
 for phrase in (
     "issue_update=ask|auto|never", "already established:",
     "proposed decisions requiring approval:", "please choose:",
@@ -402,27 +402,27 @@ for phrase in (
     "continuation gate", "known next steps are work, not blockers",
 ):
     if phrase not in deliver:
-        errors.append(f"deliver-github-issue: missing proposal/continuation safeguard {phrase!r}")
+        errors.append(f"deliver-issue: missing proposal/continuation safeguard {phrase!r}")
 
-issue_fixer = texts["issue-fixer"].lower()
+issue_fixer = texts["update-issue"].lower()
 for phrase in ("m#", "approve", "revise", "reject", "recheck", "internal hand-off", "rerun `$issue-review` from scratch"):
     if phrase not in issue_fixer:
-        errors.append(f"issue-fixer: missing editable-proposal safeguard {phrase!r}")
+        errors.append(f"update-issue: missing editable-proposal safeguard {phrase!r}")
 
 continuation_skills = {
-    "deliver-github-issue", "implement-task", "implement-reviewed-item",
-    "adversarial-review-loop", "comment-fixer", "pr-fixer",
+    "deliver-issue", "deliver-work-item", "execute-reviewed-item",
+    "adversarial-review-loop", "address-comments", "update-pr",
 }
 for name in continuation_skills:
     lower = texts[name].lower()
-    if name == "deliver-github-issue":
+    if name == "deliver-issue":
         if "explicit invocation requests execution, not a status report" not in lower:
             errors.append(f"{name}: missing execution-not-status continuation gate")
     elif "do not stop at orientation or known remaining work" not in lower:
         errors.append(f"{name}: missing compact continuation rule")
 
-if "always run a fresh `$pr-review" not in texts["pre-merge-verification"].lower():
-    errors.append("pre-merge-verification: must review the exact current head freshly")
+if "always run a fresh `$pr-review" not in texts["verify-pr-readiness"].lower():
+    errors.append("verify-pr-readiness: must review the exact current head freshly")
 
 for required in (
     ROOT / "README.md", ROOT / "ADVERSARIAL-REVIEW.md",

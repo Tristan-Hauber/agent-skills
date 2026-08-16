@@ -1,5 +1,5 @@
 ---
-name: pr-fixer
+name: update-pr
 description: Fix validated PR findings and leave the PR updated, pushed, and ready for review.
 ---
 

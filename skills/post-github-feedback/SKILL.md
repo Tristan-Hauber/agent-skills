@@ -1,5 +1,5 @@
 ---
-name: provide-github-feedback
+name: post-github-feedback
 description: Post a completed finding list as deduplicated issue or PR feedback without reviewing or fixing.
 ---
 

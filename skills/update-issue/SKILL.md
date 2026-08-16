@@ -1,5 +1,5 @@
 ---
-name: issue-fixer
+name: update-issue
 description: Update an existing issue from authorised findings or decisions through a reviewed draft.
 ---
 

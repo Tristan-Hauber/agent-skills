@@ -1,5 +1,5 @@
 ---
-name: implement-reviewed-item
+name: execute-reviewed-item
 description: Implement one bounded item and produce a single reviewed, validated final commit.
 ---
 

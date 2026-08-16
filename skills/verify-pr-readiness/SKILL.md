@@ -1,5 +1,5 @@
 ---
-name: pre-merge-verification
+name: verify-pr-readiness
 description: Read-only verification that a PR's exact current state is ready to merge.
 ---
 
