@@ -3,7 +3,7 @@ name: pr-review
 description: Verify that a PR is correct, in scope, adequately validated, and consistent with linked requirements.
 ---
 
-Review only; do not edit. Tie findings to the remote head SHA. Accept optional verified receipt and `scope=auto|initial|delta|final` (`auto` default).
+Review only; do not edit. Tie findings to the remote head SHA. Accept optional verified receipt and `scope=auto|initial|delta|final` (`auto` default). After the review receipt is emitted, automatically run `$github-review-learnings` so settled review learnings are recorded without changing the review result.
 
 1. Verify base/head ancestry, issue/comment/linked-source revisions, repo-instruction hashes, file blobs, checks, and prior cutoff. Initial review maps full base..head diff, comments/threads, rules/docs, and linked decisions. A descendant repeat starts with previous-head..current-head, changed blobs/symbols, and new/edited comments; base movement, force-push/non-ancestry, or unknown freshness invalidates affected evidence. For stacked PRs inspect child-head delta and discussion since any supplied or known review cutoff first; expand unchanged parents for cross-stack contracts, regressions, or uncertainty.
 2. Retrieve stat/name-status before hunks, then bounded symbol context; whole files/history only when interactions require it. Target near 1,000 tokens per fragment; split/expand intentionally and never exceed 10,000 unless unavoidable. Keep logs outside context; inject status/failures.
