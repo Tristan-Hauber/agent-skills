@@ -30,12 +30,12 @@ Classify each candidate as one of:
 - `contract`: a settled product or data-model rule;
 - `implementation`: a verified code or architecture hazard;
 - `testing`: a verified coverage or test-strength lesson;
-- `workflow`: a verified review, validation, or delivery lesson;
-- `decision-needed`: an unresolved question, kept separate from learnings.
+- `workflow`: a verified review, validation, or delivery lesson.
 
 Do not record a learning merely because a reviewer made a comment. A comment becomes a learning
 only when current code, specifications, later discussion, or a verified test result establishes the
 underlying fact. Keep duplicate comments as one learning while retaining all supporting URLs.
+Unresolved questions and `Please answer:` items are review output, not learning records.
 
 ## Record shape
 
@@ -55,15 +55,13 @@ Each record contains:
 - `confidence` — `moderate` or `strong`;
 - `revisit_when` — the code, issue, or decision that would invalidate it, when known.
 
-Keep unresolved questions as `decision-needed` records with the direct question and source; never
-silently convert them into a recommendation. Do not include a proposed fix unless the source
-already records an accepted decision.
+Do not include a proposed fix unless the source already records an accepted decision.
 
 ## Safety
 
 - Never record a reviewer preference as a project fact without corroborating evidence or an
   explicitly settled decision.
-- Keep `decision-needed` records separate from settled learnings and include the direct question.
+- Do not record unresolved questions, rejected suggestions, or unsupported claims.
 - Do not modify GitHub, source code, issue/PR bodies, review state, or commits.
 - Do not duplicate an existing record unless adding new evidence or changing its confidence.
 - If the receipt contains no settled learning, report `NO LEARNINGS` and do not create an empty
