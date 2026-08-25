@@ -12,4 +12,4 @@ Review only. Accept one target plus selected IDs/URLs, unresolved threads, comme
 
 Render fixer-ready `P#` defects and `N# | sources | satisfied|obsolete|duplicate:P#|unsupported|suggestion|superseded|conflict:Q# | evidence` dispositions. Put only unresolved decisions under `Please answer:` as direct `Q#` questions; no `NEXT`. Re-evaluate affected comments after answers.
 
-Output findings/questions or `NO COMMENTS`, plus a receipt containing target revision/head, selected comment fingerprints/cutoff, linked evidence fingerprints, inspected locations, and result IDs.
+Output findings/questions or `NO COMMENTS`, plus a receipt containing target revision/head, selected comment fingerprints/cutoff, linked evidence fingerprints, inspected locations, and result IDs. After emitting the receipt, automatically run `$github-review-learnings` with that receipt; it may record only settled, evidence-bounded learnings and must not change the review result.
