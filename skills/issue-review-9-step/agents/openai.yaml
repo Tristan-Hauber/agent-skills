@@ -1,0 +1,4 @@
+interface:
+  display_name: "9-Step Issue Review"
+  short_description: "Audit issues across nine operational angles"
+  default_prompt: "Use $issue-review-9-step to audit this GitHub issue for readiness."
