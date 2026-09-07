@@ -119,7 +119,7 @@ def github_metadata(repo: Path, cache_root: str | Path | None, repo_id: str, bra
         try:
             if cache.exists() and (datetime.now().timestamp() - cache.stat().st_mtime) < 300:
                 cached = json.loads(cache.read_text(encoding="utf-8"))
-                return cached if isinstance(cached, dict) and cached else None
+                return cached if isinstance(cached, dict) else None
         except (OSError, json.JSONDecodeError):
             pass
     value = run_gh(repo)
@@ -195,6 +195,7 @@ def context(args: argparse.Namespace) -> dict[str, Any]:
     return {
         "schema_version": SCHEMA_VERSION, "record_type": "semantic_context", "recorded_at": utc_now(),
         "session_id": bounded(args.session_id), "prompt_id": bounded(args.prompt_id), "phase_id": bounded(args.phase_id or str(uuid.uuid4()), 128),
+        "boundary": bounded(args.hook_event, 64),
         "activity": activity, "activity_source": activity_source, "scope": scope,
         "object_kind": bounded(object_kind, 64), "object_id": bounded(object_id, 256), "task_id": bounded(args.task_id),
         "review_source": review_source, "parent_task_id": bounded(args.parent_task_id),
@@ -353,6 +354,7 @@ def parser() -> argparse.ArgumentParser:
     common.add_argument("--session-id")
     common.add_argument("--prompt-id")
     common.add_argument("--phase-id")
+    common.add_argument("--hook-event")
     common.add_argument("--instruction-path")
     common.add_argument("--activity", choices=sorted(ACTIVITIES))
     common.add_argument("--scope", choices=sorted(SCOPES))

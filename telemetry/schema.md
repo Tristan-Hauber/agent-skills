@@ -2,7 +2,7 @@
 
 Stage 1 native OTLP logs and metrics remain authoritative and unchanged. Stage 2 adds `data/semantic.jsonl` context records and derives `data/enriched.jsonl` for local analysis.
 
-Each semantic record has `schema_version: 2`, `record_type: semantic_context`, session/prompt correlation fields, and separate semantic dimensions:
+Each semantic record has `schema_version: 2`, `record_type: semantic_context`, session/prompt correlation fields, the originating lifecycle `boundary`, and separate semantic dimensions:
 
 - `activity`: review, plan, implement, fix-review, diagnose, refine, deliver, or other.
 - `scope`: issue, pr, sub-feature, review-batch, individual-finding, repository, or other.

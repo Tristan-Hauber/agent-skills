@@ -18,7 +18,7 @@ case "$event" in
   PreCompact|PostCompact|SessionStart|SessionEnd|PreModelSwitch|PostModelSwitch) :;;
   *) exit 0;;
 esac
-set -- phase --root "$root" --session-id "$session" --prompt-id "$prompt" --cwd "$cwd"
+set -- phase --root "$root" --session-id "$session" --prompt-id "$prompt" --cwd "$cwd" --hook-event "$event"
 [ -z "$instruction" ] || set -- "$@" --instruction-path "$instruction"
 [ -z "$branch" ] || set -- "$@" --branch "$branch"
 [ -z "${text:-}" ] || set -- "$@" --text "$text"

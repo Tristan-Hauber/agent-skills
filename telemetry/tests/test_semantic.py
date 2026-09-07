@@ -78,7 +78,7 @@ class SemanticTelemetryTests(unittest.TestCase):
             root = Path(directory)
             args = semantic.parser().parse_args([
                 "phase", "--root", str(root), "--session-id", "s1", "--prompt-id", "p1",
-                "--activity", "review", "--scope", "pr", "--object-id", "725",
+                "--activity", "review", "--scope", "pr", "--object-id", "725", "--hook-event", "PreCompact",
             ])
             semantic.mark(args)
             (root / "data/native-logs.jsonl").write_text(json.dumps({"session_id": "s1", "event": "api_request"}) + "\n")
@@ -87,6 +87,7 @@ class SemanticTelemetryTests(unittest.TestCase):
             self.assertEqual(result["event"]["event"], "api_request")
             self.assertEqual(result["semantic"]["object_id"], "725")
             self.assertTrue(result["semantic"]["phase_id"])
+            self.assertEqual(result["semantic"]["boundary"], "PreCompact")
 
     def test_enrichment_carries_context_forward_but_not_backward(self):
         records = [
