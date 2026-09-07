@@ -1,0 +1,25 @@
+#!/bin/sh
+set +e
+exec 2>/dev/null
+umask 077
+root=${CLAUDE_TELEMETRY_ROOT:-"$HOME/.agents/telemetry"}
+payload=$(cat)
+[ -n "$payload" ] || exit 0
+json() { printf '%s' "$payload" | jq -r "$1" 2>/dev/null; }
+event=$(json '.hook_event_name // empty')
+[ -n "$event" ] || exit 0
+session=$(json '.session_id // empty')
+prompt=$(json '.prompt_id // empty')
+cwd=$(json '.cwd // .workspace.current_dir // empty')
+instruction=$(json '.instruction_path // .instructionPath // .file_path // .path // empty')
+branch=$(json '.git.branch // .branch // empty')
+case "$event" in
+  InstructionsLoaded) text=$(json '.instruction_scope // .scope // empty');;
+  PreCompact|PostCompact|SessionStart|SessionEnd|PreModelSwitch|PostModelSwitch) :;;
+  *) exit 0;;
+esac
+set -- phase --root "$root" --session-id "$session" --prompt-id "$prompt" --cwd "$cwd"
+[ -z "$instruction" ] || set -- "$@" --instruction-path "$instruction"
+[ -z "$branch" ] || set -- "$@" --branch "$branch"
+[ -z "${text:-}" ] || set -- "$@" --text "$text"
+exec python3 "$root/semantic.py" "$@"
