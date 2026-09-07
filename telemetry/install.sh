@@ -10,7 +10,7 @@ cp "$root/schema.md" "$destination/schema.md"
 chmod 700 "$destination/semantic.py" "$destination/bin/telemetry" "$destination/bin/record-context"
 settings="$HOME/.claude/settings.json"
 if [ -f "$settings" ] && command -v jq >/dev/null 2>&1; then
-  backup="$settings.stage1-backup.$(date +%Y%m%d%H%M%S)"
+  backup=$(mktemp "$settings.stage1-backup.XXXXXX")
   cp "$settings" "$backup"
   tmp=$(mktemp "$settings.stage2.XXXXXX")
   if jq --arg command "$destination/bin/record-context" '
@@ -27,6 +27,8 @@ if [ -f "$settings" ] && command -v jq >/dev/null 2>&1; then
     rm -f "$tmp"
     printf 'WARNING: settings update failed; backup retained: %s\n' "$backup" >&2
   fi
+elif [ -f "$settings" ]; then
+  printf 'WARNING: jq is unavailable; semantic lifecycle hooks were not added.\n' >&2
 fi
 printf 'Installed semantic telemetry runtime in %s\n' "$destination"
 printf 'Run %s/bin/telemetry phase --help for explicit phase markers.\n' "$destination"

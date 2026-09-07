@@ -43,6 +43,10 @@ def short(value: Any, limit: int = 240) -> str | None:
     return value[:limit] or None
 
 
+def bounded(value: Any, limit: int = 512) -> str | None:
+    return short(value, limit)
+
+
 def run_git(repo: Path, *args: str) -> str | None:
     try:
         result = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, timeout=2, check=True)
@@ -61,7 +65,15 @@ def run_gh(repo: Path) -> dict[str, Any] | None:
         value = json.loads(result.stdout)
     except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
         return None
-    return value if isinstance(value, dict) else None
+    if not isinstance(value, dict):
+        return None
+    return {
+        "number": value.get("number"),
+        "title": bounded(value.get("title")),
+        "baseRefName": bounded(value.get("baseRefName"), 128),
+        "headRefName": bounded(value.get("headRefName"), 128),
+        "state": bounded(value.get("state"), 32),
+    }
 
 
 def repo_root(cwd: str | Path | None) -> Path | None:
@@ -104,11 +116,11 @@ def github_metadata(repo: Path, cache_root: str | Path | None, repo_id: str, bra
     cache = None
     if cache_root and branch:
         cache = Path(cache_root) / "state" / f"github-{repo_id}-{hashlib.sha256(branch.encode()).hexdigest()[:12]}.json"
-        if cache.exists() and (datetime.now().timestamp() - cache.stat().st_mtime) < 300:
-            try:
+        try:
+            if cache.exists() and (datetime.now().timestamp() - cache.stat().st_mtime) < 300:
                 return json.loads(cache.read_text(encoding="utf-8")) or None
-            except (OSError, json.JSONDecodeError):
-                pass
+        except (OSError, json.JSONDecodeError):
+            pass
     value = run_gh(repo)
     if cache:
         try:
@@ -152,12 +164,12 @@ def git_metadata(cwd: str | Path | None, cache_root: str | Path | None = None) -
     branch = run_git(root, "branch", "--show-current")
     github = github_metadata(root, cache_root, repository_id, branch)
     return {
-        "repository": str(root),
+        "repository": bounded(root, 1024),
         "repo_id": repository_id,
         "remote_hash": hashlib.sha256(safe_remote.encode()).hexdigest()[:24] if safe_remote else None,
-        "branch": branch,
+        "branch": bounded(branch, 256),
         "head": run_git(root, "rev-parse", "HEAD"),
-        "upstream": run_git(root, "rev-parse", "--abbrev-ref", "@{upstream}"),
+        "upstream": bounded(run_git(root, "rev-parse", "--abbrev-ref", "@{upstream}"), 256),
         "diff": diff,
         "untracked_files": sum(line.startswith("?? ") for line in status.splitlines()),
         "github": {"pull_request": github} if github else None,
@@ -181,10 +193,10 @@ def context(args: argparse.Namespace) -> dict[str, Any]:
         review_source = "claude"
     return {
         "schema_version": SCHEMA_VERSION, "record_type": "semantic_context", "recorded_at": utc_now(),
-        "session_id": args.session_id or None, "prompt_id": args.prompt_id or None, "phase_id": args.phase_id or str(uuid.uuid4()),
+        "session_id": bounded(args.session_id), "prompt_id": bounded(args.prompt_id), "phase_id": bounded(args.phase_id or str(uuid.uuid4()), 128),
         "activity": activity, "activity_source": activity_source, "scope": scope,
-        "object_kind": object_kind, "object_id": object_id, "task_id": args.task_id or None,
-        "review_source": review_source, "parent_task_id": args.parent_task_id or None,
+        "object_kind": bounded(object_kind, 64), "object_id": bounded(object_id, 256), "task_id": bounded(args.task_id),
+        "review_source": review_source, "parent_task_id": bounded(args.parent_task_id),
         "confidence": "explicit" if args.activity or args.scope or args.object_id or args.task_id else "inferred",
         "cwd": args.cwd, "git": git,
     }
@@ -224,7 +236,8 @@ def load_records(path: Path) -> list[dict[str, Any]]:
 
 
 def merged_context(records: list[dict[str, Any]], event_time: str | None, prompt: str | None) -> dict[str, Any] | None:
-    candidates = [record for record in records if not event_time or record.get("recorded_at", "") <= event_time]
+    candidates = [record for record in records if record.get("record_type") == "semantic_context" and record.get("schema_version") == SCHEMA_VERSION
+                  and (not event_time or record.get("recorded_at", "") <= event_time)]
     if not candidates:
         return None
     candidates.sort(key=lambda record: record.get("recorded_at", ""))
@@ -240,6 +253,9 @@ def merged_context(records: list[dict[str, Any]], event_time: str | None, prompt
                 merged[key] = value
         if record.get("prompt_id") == prompt:
             merged["prompt_id"] = prompt
+        if record.get("phase_id"):
+            merged["phase_id"] = record["phase_id"]
+            merged["context_recorded_at"] = record.get("recorded_at")
     merged["record_type"] = "semantic_context"
     merged["schema_version"] = SCHEMA_VERSION
     return merged
@@ -252,6 +268,7 @@ def enrich(args: argparse.Namespace) -> None:
     for record in semantic:
         by_session.setdefault(record.get("session_id") or "", []).append(record)
     output = Path(args.output) if args.output else root / "data/enriched.jsonl"
+    output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8") as destination:
         for source in ("native-logs.jsonl", "native-metrics.jsonl", "lifecycle.jsonl", "status.jsonl"):
             for event in iter_records(root / "data" / source) or ():

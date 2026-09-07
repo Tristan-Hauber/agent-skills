@@ -86,11 +86,12 @@ class SemanticTelemetryTests(unittest.TestCase):
             result = json.loads((root / "data/enriched.jsonl").read_text())
             self.assertEqual(result["event"]["event"], "api_request")
             self.assertEqual(result["semantic"]["object_id"], "725")
+            self.assertTrue(result["semantic"]["phase_id"])
 
     def test_enrichment_carries_context_forward_but_not_backward(self):
         records = [
-            {"recorded_at": "2026-01-01T00:00:00.000Z", "activity": "review", "scope": "pr", "session_id": "s"},
-            {"recorded_at": "2026-01-01T00:02:00.000Z", "activity": "implement", "session_id": "s"},
+            {"schema_version": 2, "record_type": "semantic_context", "recorded_at": "2026-01-01T00:00:00.000Z", "activity": "review", "scope": "pr", "session_id": "s", "phase_id": "p1"},
+            {"schema_version": 2, "record_type": "semantic_context", "recorded_at": "2026-01-01T00:02:00.000Z", "activity": "implement", "session_id": "s", "phase_id": "p2"},
         ]
         before = semantic.merged_context(records, "2026-01-01T00:01:00.000Z", None)
         after = semantic.merged_context(records, "2026-01-01T00:03:00.000Z", None)
