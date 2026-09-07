@@ -271,18 +271,63 @@ def enrich(args: argparse.Namespace) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8") as destination:
         for source in ("native-logs.jsonl", "native-metrics.jsonl", "lifecycle.jsonl", "status.jsonl"):
-            for event in iter_records(root / "data" / source) or ():
-                session = event.get("session_id") or _find_nested(event, "session.id")
-                prompt = event.get("prompt_id") or _find_nested(event, "prompt.id")
-                event_time = event.get("recorded_at") or _find_nested(event, "event.timestamp") or "9999"
-                matches = by_session.get(session or "", [])
-                selected = merged_context(matches, event_time if event_time != "9999" else None, prompt)
-                enriched = {"source": source, "event": event, "semantic": selected}
-                destination.write(json.dumps(enriched, ensure_ascii=False, separators=(",", ":")) + "\n")
+            for batch in iter_records(root / "data" / source) or ():
+                for event in expand_events(source, batch):
+                    session = event.get("session_id") or _find_nested(event, "session.id")
+                    prompt = event.get("prompt_id") or _find_nested(event, "prompt.id")
+                    event_time = event.get("recorded_at") or _event_time(event)
+                    matches = by_session.get(session or "", [])
+                    selected = merged_context(matches, event_time, prompt)
+                    enriched = {"source": source, "event": event, "semantic": selected}
+                    destination.write(json.dumps(enriched, ensure_ascii=False, separators=(",", ":")) + "\n")
+
+
+def expand_events(source: str, batch: dict[str, Any]):
+    if source == "native-logs.jsonl":
+        found = False
+        for resource_logs in batch.get("resourceLogs", []):
+            resource = resource_logs.get("resource")
+            for scope_logs in resource_logs.get("scopeLogs", []):
+                scope = scope_logs.get("scope")
+                for log in scope_logs.get("logRecords", []):
+                    found = True
+                    yield {"resource": resource, "scope": scope, "log": log}
+        if found:
+            return
+    if source == "native-metrics.jsonl":
+        found = False
+        for resource_metrics in batch.get("resourceMetrics", []):
+            resource = resource_metrics.get("resource")
+            for scope_metrics in resource_metrics.get("scopeMetrics", []):
+                scope = scope_metrics.get("scope")
+                for metric in scope_metrics.get("metrics", []):
+                    points = metric.get("sum", {}).get("dataPoints", [])
+                    for point in points:
+                        found = True
+                        yield {"resource": resource, "scope": scope, "metric": metric.get("name"), "point": point}
+        if found:
+            return
+    yield batch
+
+
+def _event_time(value: Any) -> str | None:
+    timestamp = _find_nested(value, "event.timestamp") or _find_nested(value, "recorded_at")
+    if timestamp:
+        return str(timestamp)
+    raw = _find_nested(value, "timeUnixNano")
+    if raw is None:
+        return None
+    try:
+        return datetime.fromtimestamp(int(raw) / 1_000_000_000, timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    except (TypeError, ValueError, OSError, OverflowError):
+        return None
 
 
 def _find_nested(value: Any, key: str) -> str | None:
     if isinstance(value, dict):
+        direct = value.get(key)
+        if isinstance(direct, (str, int, float)):
+            return str(direct)
         if value.get("key") == key:
             inner = value.get("value", {})
             return next((inner.get(name) for name in ("stringValue", "intValue") if inner.get(name) is not None), None)

@@ -98,6 +98,32 @@ class SemanticTelemetryTests(unittest.TestCase):
         self.assertEqual(before["activity"], "review")
         self.assertEqual(after["activity"], "implement")
 
+    def test_enrichment_splits_native_batches_and_normalizes_metric_time(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for activity, prompt, timestamp in (("review", "p1", "2026-01-01T00:00:00.000Z"), ("implement", "p2", "2026-01-01T00:02:00.000Z")):
+                record = {"schema_version": 2, "record_type": "semantic_context", "recorded_at": timestamp,
+                          "session_id": "s1", "prompt_id": prompt, "phase_id": prompt, "activity": activity}
+                (root / "data").mkdir(exist_ok=True)
+                with (root / "data/semantic.jsonl").open("a") as output:
+                    output.write(json.dumps(record) + "\n")
+            batch = {"resourceLogs": [{"scopeLogs": [{"logRecords": [
+                {"attributes": [{"key": "session.id", "value": {"stringValue": "s1"}}, {"key": "prompt.id", "value": {"stringValue": "p1"}}, {"key": "event.timestamp", "value": {"stringValue": "2026-01-01T00:01:00.000Z"}}]},
+                {"attributes": [{"key": "session.id", "value": {"stringValue": "s1"}}, {"key": "prompt.id", "value": {"stringValue": "p2"}}, {"key": "event.timestamp", "value": {"stringValue": "2026-01-01T00:03:00.000Z"}}]},
+            ]}]}]}
+            (root / "data/native-logs.jsonl").write_text(json.dumps(batch) + "\n")
+            metric = {"resourceMetrics": [{"scopeMetrics": [{"metrics": [{"name": "cost", "sum": {"dataPoints": [
+                {"attributes": [{"key": "session.id", "value": {"stringValue": "s1"}}], "timeUnixNano": "1767225660000000000"}
+            ]}}]}]}]}
+            (root / "data/native-metrics.jsonl").write_text(json.dumps(metric) + "\n")
+            semantic.enrich(semantic.parser().parse_args(["enrich", "--root", str(root)]))
+            results = [json.loads(line) for line in (root / "data/enriched.jsonl").read_text().splitlines()]
+            logs = [result for result in results if result["source"] == "native-logs.jsonl"]
+            self.assertEqual(len(logs), 2)
+            self.assertEqual([result["semantic"]["activity"] for result in logs], ["review", "implement"])
+            metrics = [result for result in results if result["source"] == "native-metrics.jsonl"]
+            self.assertEqual(metrics[0]["semantic"]["activity"], "review")
+
 
 if __name__ == "__main__":
     unittest.main()
