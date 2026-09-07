@@ -118,7 +118,8 @@ def github_metadata(repo: Path, cache_root: str | Path | None, repo_id: str, bra
         cache = Path(cache_root) / "state" / f"github-{repo_id}-{hashlib.sha256(branch.encode()).hexdigest()[:12]}.json"
         try:
             if cache.exists() and (datetime.now().timestamp() - cache.stat().st_mtime) < 300:
-                return json.loads(cache.read_text(encoding="utf-8")) or None
+                cached = json.loads(cache.read_text(encoding="utf-8"))
+                return cached if isinstance(cached, dict) and cached else None
         except (OSError, json.JSONDecodeError):
             pass
     value = run_gh(repo)
@@ -301,10 +302,12 @@ def expand_events(source: str, batch: dict[str, Any]):
             for scope_metrics in resource_metrics.get("scopeMetrics", []):
                 scope = scope_metrics.get("scope")
                 for metric in scope_metrics.get("metrics", []):
-                    points = metric.get("sum", {}).get("dataPoints", [])
-                    for point in points:
-                        found = True
-                        yield {"resource": resource, "scope": scope, "metric": metric.get("name"), "point": point}
+                    for metric_type in ("sum", "gauge", "histogram", "exponentialHistogram", "summary"):
+                        points = metric.get(metric_type, {}).get("dataPoints", [])
+                        for point in points:
+                            found = True
+                            yield {"resource": resource, "scope": scope, "metric": metric.get("name"),
+                                   "metric_type": metric_type, "point": point}
         if found:
             return
     yield batch
