@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
 import re
 import subprocess
-import sys
+import tempfile
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -111,8 +113,13 @@ def github_metadata(repo: Path, cache_root: str | Path | None, repo_id: str, bra
     if cache:
         try:
             cache.parent.mkdir(parents=True, exist_ok=True)
-            cache.write_text(json.dumps(value or {}, separators=(",", ":")), encoding="utf-8")
+            with tempfile.NamedTemporaryFile("w", dir=cache.parent, prefix=f".{cache.name}.", delete=False, encoding="utf-8") as output:
+                json.dump(value or {}, output, separators=(",", ":"))
+                temporary = output.name
+            os.replace(temporary, cache)
         except OSError:
+            if "temporary" in locals():
+                Path(temporary).unlink(missing_ok=True)
             pass
     return value
 
@@ -126,11 +133,21 @@ def git_metadata(cwd: str | Path | None, cache_root: str | Path | None = None) -
     safe_remote = re.sub(r"^([A-Za-z][A-Za-z0-9+.-]*://)[^/@]+@", r"\1", remote or "")
     safe_remote = re.sub(r"//[^/@]+@", "//", safe_remote).split("?", 1)[0].split("#", 1)[0]
     diff = {}
-    for label, args in (("working", ("diff", "--stat", "HEAD")), ("staged", ("diff", "--cached", "--stat"))):
-        stat = run_git(root, *args) or ""
-        match = re.search(r"(\d+) files? changed(?:, (\d+) insertions?\(\+\))?(?:, (\d+) deletions?\(-\))?", stat)
-        diff[label] = {"files": int(match.group(1)) if match else 0, "insertions": int(match.group(2) or 0) if match else 0,
-                       "deletions": int(match.group(3) or 0) if match else 0}
+    for label, args in (("working", ("diff", "--numstat", "HEAD")), ("staged", ("diff", "--cached", "--numstat"))):
+        stats = run_git(root, *args) or ""
+        files = insertions = deletions = binary = 0
+        for line in stats.splitlines():
+            columns = line.split("\t", 2)
+            if len(columns) != 3:
+                continue
+            files += 1
+            if columns[0] == "-" or columns[1] == "-":
+                binary += 1
+            else:
+                insertions += int(columns[0])
+                deletions += int(columns[1])
+        diff[label] = {"files": files, "insertions": insertions, "deletions": deletions, "binary_files": binary}
+    status = run_git(root, "status", "--porcelain") or ""
     repository_id = hashlib.sha256(str(root).encode()).hexdigest()[:24]
     branch = run_git(root, "branch", "--show-current")
     github = github_metadata(root, cache_root, repository_id, branch)
@@ -142,6 +159,7 @@ def git_metadata(cwd: str | Path | None, cache_root: str | Path | None = None) -
         "head": run_git(root, "rev-parse", "HEAD"),
         "upstream": run_git(root, "rev-parse", "--abbrev-ref", "@{upstream}"),
         "diff": diff,
+        "untracked_files": sum(line.startswith("?? ") for line in status.splitlines()),
         "github": {"pull_request": github} if github else None,
     }
 
@@ -150,15 +168,20 @@ def context(args: argparse.Namespace) -> dict[str, Any]:
     git = git_metadata(args.cwd, args.root)
     branch = args.branch or git["branch"]
     activity, activity_source = infer_activity(args.instruction_path, args.activity)
-    object_id = args.object_id or infer_issue(branch, args.text)
-    object_kind = args.object_kind or ("pr" if activity in {"review", "fix-review"} else "issue" if object_id else None)
+    pull_request = (git.get("github") or {}).get("pull_request") or {}
+    skill_path = args.instruction_path or ""
+    inferred_kind = "issue" if "issue-review" in skill_path or "issue-refinement" in skill_path else None
+    inferred_kind = inferred_kind or ("pr" if pull_request or "pr-review" in skill_path else None)
+    object_kind = args.object_kind or inferred_kind or ("pr" if activity in {"review", "fix-review"} else None)
+    object_id = args.object_id or (str(pull_request["number"]) if pull_request.get("number") is not None else None) or infer_issue(branch, args.text)
+    object_kind = object_kind or ("issue" if object_id else None)
     scope = args.scope or infer_scope(activity, branch, object_kind)
     review_source = args.review_source
     if not review_source and activity in {"review", "fix-review"}:
         review_source = "claude"
     return {
         "schema_version": SCHEMA_VERSION, "record_type": "semantic_context", "recorded_at": utc_now(),
-        "session_id": args.session_id or None, "prompt_id": args.prompt_id or None, "phase_id": args.phase_id or None,
+        "session_id": args.session_id or None, "prompt_id": args.prompt_id or None, "phase_id": args.phase_id or str(uuid.uuid4()),
         "activity": activity, "activity_source": activity_source, "scope": scope,
         "object_kind": object_kind, "object_id": object_id, "task_id": args.task_id or None,
         "review_source": review_source, "parent_task_id": args.parent_task_id or None,
@@ -171,7 +194,11 @@ def append_jsonl(path: Path, record: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     line = json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n"
     with path.open("a", encoding="utf-8") as output:
+        fcntl.flock(output.fileno(), fcntl.LOCK_EX)
         output.write(line)
+        output.flush()
+        os.fsync(output.fileno())
+        fcntl.flock(output.fileno(), fcntl.LOCK_UN)
 
 
 def mark(args: argparse.Namespace) -> None:
@@ -179,18 +206,43 @@ def mark(args: argparse.Namespace) -> None:
     append_jsonl(root / "data/semantic.jsonl", context(args))
 
 
-def load_records(path: Path) -> list[dict[str, Any]]:
+def iter_records(path: Path):
     if not path.exists():
-        return []
-    records = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        try:
-            value = json.loads(line)
-            if isinstance(value, dict):
-                records.append(value)
-        except json.JSONDecodeError:
-            continue
-    return records
+        return
+    with path.open(encoding="utf-8") as source:
+        for line in source:
+            try:
+                value = json.loads(line)
+                if isinstance(value, dict):
+                    yield value
+            except json.JSONDecodeError:
+                continue
+
+
+def load_records(path: Path) -> list[dict[str, Any]]:
+    return list(iter_records(path) or ())
+
+
+def merged_context(records: list[dict[str, Any]], event_time: str | None, prompt: str | None) -> dict[str, Any] | None:
+    candidates = [record for record in records if not event_time or record.get("recorded_at", "") <= event_time]
+    if not candidates:
+        return None
+    candidates.sort(key=lambda record: record.get("recorded_at", ""))
+    exact = [record for record in candidates if prompt and record.get("prompt_id") == prompt]
+    if exact:
+        candidates = [record for record in candidates if not record.get("prompt_id") or record.get("prompt_id") == prompt]
+    merged: dict[str, Any] = {}
+    for record in candidates:
+        for key, value in record.items():
+            if key in {"schema_version", "record_type", "recorded_at", "phase_id", "prompt_id"}:
+                continue
+            if value is not None:
+                merged[key] = value
+        if record.get("prompt_id") == prompt:
+            merged["prompt_id"] = prompt
+    merged["record_type"] = "semantic_context"
+    merged["schema_version"] = SCHEMA_VERSION
+    return merged
 
 
 def enrich(args: argparse.Namespace) -> None:
@@ -202,14 +254,12 @@ def enrich(args: argparse.Namespace) -> None:
     output = Path(args.output) if args.output else root / "data/enriched.jsonl"
     with output.open("w", encoding="utf-8") as destination:
         for source in ("native-logs.jsonl", "native-metrics.jsonl", "lifecycle.jsonl", "status.jsonl"):
-            for event in load_records(root / "data" / source):
+            for event in iter_records(root / "data" / source) or ():
                 session = event.get("session_id") or _find_nested(event, "session.id")
                 prompt = event.get("prompt_id") or _find_nested(event, "prompt.id")
                 event_time = event.get("recorded_at") or _find_nested(event, "event.timestamp") or "9999"
                 matches = by_session.get(session or "", [])
-                exact = [record for record in matches if prompt and record.get("prompt_id") == prompt]
-                preceding = [record for record in (exact or matches) if record.get("recorded_at", "") <= event_time]
-                selected = (preceding or exact or matches or [None])[-1]
+                selected = merged_context(matches, event_time if event_time != "9999" else None, prompt)
                 enriched = {"source": source, "event": event, "semantic": selected}
                 destination.write(json.dumps(enriched, ensure_ascii=False, separators=(",", ":")) + "\n")
 
