@@ -33,7 +33,7 @@ Do not modify fixture files during a benchmark run.
    - independent contexts actually used;
    - model/harness/skill effort;
    - main and worker message tokens;
-   - wall time.
+   - wall-clock runtime.
 
 ## Scoring
 
@@ -44,7 +44,7 @@ QCR-5 through QCR-7 are secondary/additional confirmed findings.
 Do not retroactively change old primary scores when new valid findings are discovered.
 
 A strong medium run should recover most or all primary findings without major false positives.
-Precision and cost are separate axes; do not collapse the result into one opaque number.
+Behavioural quality, total effective token cost, and wall-clock runtime are separate axes; do not collapse the result into one opaque number.
 
 ## Effort profiles
 

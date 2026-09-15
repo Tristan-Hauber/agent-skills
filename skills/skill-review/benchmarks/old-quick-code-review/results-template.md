@@ -7,7 +7,7 @@
 - Model reasoning/thinking depth:
 - Skill effort:
 - Flags:
-- Wall time:
+- Wall-clock runtime:
 - Main/orchestrator message tokens:
 - Reviewer A message tokens:
 - Reviewer B message tokens:
@@ -47,3 +47,11 @@
 - Precision/calibration:
 - Cost:
 - Keep canonical / challenger merits repeat / reject challenger:
+
+
+## Three-axis summary
+
+- Behavioural quality / primary recall:
+- False positives / material overstatements:
+- Total effective message tokens:
+- Wall-clock runtime:

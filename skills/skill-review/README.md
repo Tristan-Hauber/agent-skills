@@ -91,6 +91,48 @@ Use it when:
 
 Do not expose `expected-findings.md` to discovery reviewers before their review is complete.
 
+## Benchmark portfolio roadmap
+
+The self-benchmark portfolio should favour **breadth across materially different skill families**
+before adding several near-duplicate fixtures from the same family.
+
+Current target categories:
+
+- **Review / critique** — **populated**: `old-quick-code-review/`.
+- **Creation / transformation** — unpopulated.
+- **Orchestration / workflow** — unpopulated.
+- **Retrieval / research** — optional future category; unpopulated.
+- **Action / mutation** — optional future category; unpopulated.
+- **Selection / routing / decision** — optional future category; unpopulated unless a substantial
+  representative skill emerges.
+
+The first three categories are the priority portfolio. Add later categories only when an actively used
+skill exercises a materially different failure mode.
+
+Prefer one representative benchmark from materially different skill families before adding multiple
+benchmarks from the same family. A benchmark does not require a dramatic historical failure, but it
+should have stable frozen inputs and enough later-confirmed evidence to distinguish good from bad
+behaviour.
+
+Interesting cases that are not yet mature enough to score belong in
+`benchmarks/candidate-evidence.md`, not immediately in the formal benchmark suite.
+
+## Benchmark optimisation axes
+
+Benchmark comparisons optimise three independent axes:
+
+1. **Behavioural quality**
+   - review skills: confirmed problems found, important misses, false positives/overstatements;
+   - other skills: correctness of the promised behaviour/output.
+2. **Total effective token cost**
+   - main/orchestrator plus all workers when measurable.
+3. **Wall-clock runtime**
+   - measure elapsed execution time for the same benchmark protocol.
+
+Do not collapse the three axes into one opaque score. A candidate that produces materially equivalent
+behaviour in less time or fewer tokens is an improvement. A faster/cheaper candidate that loses
+important correctness is not.
+
 ## Current observed champion result
 
 The development configuration was Sonnet 5 with Medium model thinking and `skill-review medium`.

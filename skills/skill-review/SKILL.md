@@ -364,7 +364,8 @@ When validating a structural/algorithmic change:
 2. run or reuse a compatible baseline result for the unchanged skill;
 3. create a temporary candidate copy containing the proposed change;
 4. run the same benchmark protocol against the candidate;
-5. compare recall/quality, false positives/overstatements, cost, and important regressions;
+5. compare recall/quality, false positives/overstatements, total effective token cost,
+   wall-clock runtime, and important regressions;
 6. reject or qualify changes that improve one dimension by materially regressing another without an
    explicit justified trade-off.
 
@@ -466,6 +467,7 @@ State:
 - independent discovery contexts actually used;
 - validation performed;
 - benchmark used/not used and why;
+- wall-clock runtime when measured;
 - cost when measurable.
 
 When worker/sub-agent telemetry is available, report separately:
